@@ -135,6 +135,30 @@ export default function OCRApp() {
     return () => document.removeEventListener('contextmenu', handleContextMenu);
   }, []);
 
+  // ── Global drag & drop ─────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      if (isProcessing) return;
+      const file = e.dataTransfer?.files?.[0];
+      if (file && ACCEPTED_MIME_TYPES.has(file.type)) {
+        handleFileSelect(file);
+      }
+    };
+
+    document.addEventListener('dragover', handleDragOver);
+    document.addEventListener('drop', handleDrop);
+    return () => {
+      document.removeEventListener('dragover', handleDragOver);
+      document.removeEventListener('drop', handleDrop);
+    };
+  }, [handleFileSelect, isProcessing]);
+
   // ── Reset ───────────────────────────────────────────────────────────────────
 
   const handleReset = useCallback(() => {
@@ -204,10 +228,11 @@ export default function OCRApp() {
           <p className="text-slate-500 text-sm">
             <span className="text-slate-400 font-medium">Tips for better results:</span>{' '}
             Use high-resolution images with clear, well-lit text. Horizontal
-            text works best. You can also paste images with{' '}
-            <span className="text-slate-400 font-mono text-xs">Ctrl+V</span>{' '}
-            or right-click. The first scan loads the language model (~10 MB)
-            — subsequent scans are instant.
+            text works best. You can drag & drop images anywhere on the page,
+            paste with{' '}
+            <span className="text-slate-400 font-mono text-xs">Ctrl+V</span>,
+            or right-click to paste. The first scan loads the language model
+            (~10 MB) — subsequent scans are instant.
           </p>
         </div>
       )}
