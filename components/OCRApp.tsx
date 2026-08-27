@@ -1,9 +1,19 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import ImageUploader from './ImageUploader';
 import OCRResult from './OCRResult';
+import ContextMenu from './ContextMenu';
 import type { OCRProgressInfo } from '@/lib/ocr';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const ACCEPTED_MIME_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+]);
 
 /**
  * OCRApp — root client component.
@@ -20,6 +30,7 @@ export default function OCRApp() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState<OCRProgressInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   // ── File selection ──────────────────────────────────────────────────────────
 
@@ -57,6 +68,73 @@ export default function OCRApp() {
     [previewUrl]
   );
 
+  // ── Clipboard image extraction ──────────────────────────────────────────────
+
+  const extractImageFromClipboard = useCallback(
+    async (e?: ClipboardEvent) => {
+      if (isProcessing) return;
+
+      // Try clipboardData from a paste event first
+      if (e?.clipboardData) {
+        const files = e.clipboardData.files;
+        if (files.length > 0) {
+          const file = files[0];
+          if (ACCEPTED_MIME_TYPES.has(file.type)) {
+            e.preventDefault();
+            handleFileSelect(file);
+            return;
+          }
+        }
+      }
+
+      // Fallback to the async Clipboard API
+      try {
+        const clipboardItems = await navigator.clipboard.read();
+        for (const item of clipboardItems) {
+          for (const type of item.types) {
+            if (type.startsWith('image/')) {
+              const blob = await item.getType(type);
+              const ext = type.split('/')[1] === 'jpeg' ? 'jpg' : type.split('/')[1];
+              const file = new File([blob], `clipboard-image.${ext}`, { type: blob.type });
+              handleFileSelect(file);
+              return;
+            }
+          }
+        }
+      } catch {
+        // Clipboard API may fail in non-secure contexts or without permission
+      }
+    },
+    [handleFileSelect, isProcessing]
+  );
+
+  // ── Global paste listener (Ctrl+V) ──────────────────────────────────────────
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      // Ignore if user is typing in an input/textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      extractImageFromClipboard(e);
+    };
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [extractImageFromClipboard]);
+
+  // ── Global right-click context menu ─────────────────────────────────────────
+
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      // Don't override native menu on inputs/textareas
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      e.preventDefault();
+      setContextMenu({ x: e.clientX, y: e.clientY });
+    };
+    document.addEventListener('contextmenu', handleContextMenu);
+    return () => document.removeEventListener('contextmenu', handleContextMenu);
+  }, []);
+
   // ── Reset ───────────────────────────────────────────────────────────────────
 
   const handleReset = useCallback(() => {
@@ -73,6 +151,16 @@ export default function OCRApp() {
 
   return (
     <div className="w-full">
+      {/* Context menu */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onPaste={() => extractImageFromClipboard()}
+        />
+      )}
+
       {/* Two-column layout on large screens, stacked on mobile */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 xl:gap-8">
         {/* Left panel — image upload & preview */}
@@ -116,7 +204,9 @@ export default function OCRApp() {
           <p className="text-slate-500 text-sm">
             <span className="text-slate-400 font-medium">Tips for better results:</span>{' '}
             Use high-resolution images with clear, well-lit text. Horizontal
-            text works best. The first scan loads the language model (~10 MB)
+            text works best. You can also paste images with{' '}
+            <span className="text-slate-400 font-mono text-xs">Ctrl+V</span>{' '}
+            or right-click. The first scan loads the language model (~10 MB)
             — subsequent scans are instant.
           </p>
         </div>

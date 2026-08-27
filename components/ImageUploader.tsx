@@ -166,6 +166,14 @@ export default function ImageUploader({
             </p>
           </div>
 
+          {/* Keyboard shortcut hint */}
+          <div className="flex items-center gap-2 text-slate-500 text-xs">
+            <span className="px-1.5 py-0.5 rounded border border-slate-600 bg-slate-700/50 font-mono text-slate-400">
+              Ctrl+V
+            </span>
+            <span>to paste from clipboard</span>
+          </div>
+
           {/* Accepted formats hint */}
           <p className="text-slate-500 text-xs">
             PNG · JPG · JPEG · WEBP &nbsp;·&nbsp; Max 10 MB
