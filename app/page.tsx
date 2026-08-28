@@ -30,6 +30,12 @@ export default function Home() {
               </svg>
             </div>
             <ThemeToggle />
+            <a
+              href="/pdf-editor"
+              className="px-4 py-2 rounded-xl bg-purple-600 text-white text-sm font-medium hover:bg-purple-500 transition-colors"
+            >
+              PDF Editor →
+            </a>
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-theme-primary mb-3 tracking-tight">
             Image Text Extractor

@@ -13,6 +13,8 @@
     "file-saver": "^2.0.5",
     "jspdf": "^4.2.1",
     "next": "^16.1.6",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.2.108",
     "react": "^18",
     "react-dom": "^18",
     "tesseract.js": "^5.1.0"
