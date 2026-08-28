@@ -5,27 +5,58 @@
  */
 
 export interface OCRProgressInfo {
-  /** Human-readable status label from Tesseract (e.g. "recognizing text") */
+  /** Human-readable status label from Tesseract */
   status: string;
   /** Percentage 0–100 */
   progress: number;
 }
 
+export interface OCRResult {
+  text: string;
+  confidence: number;
+}
+
+// ─── Supported languages ──────────────────────────────────────────────────────
+
+export const LANGUAGES: Record<string, string> = {
+  eng: 'English',
+  spa: 'Spanish',
+  fra: 'French',
+  deu: 'German',
+  hin: 'Hindi',
+  ara: 'Arabic',
+  chi_sim: 'Chinese (Simplified)',
+  chi_tra: 'Chinese (Traditional)',
+  jpn: 'Japanese',
+  kor: 'Korean',
+  por: 'Portuguese',
+  rus: 'Russian',
+  ita: 'Italian',
+  nld: 'Dutch',
+  pol: 'Polish',
+  tur: 'Turkish',
+  vie: 'Vietnamese',
+  tha: 'Thai',
+  ind: 'Indonesian',
+  swe: 'Swedish',
+};
+
 /**
  * Extracts text from an image using Tesseract.js running entirely in the browser.
  *
- * @param imageSource  A File object (from an <input type="file">) or a URL string.
- * @param onProgress   Optional callback invoked with progress updates during recognition.
- * @returns            The extracted text, trimmed of surrounding whitespace.
+ * @param imageSource  A File object or a URL string.
+ * @param language     Tesseract language code (default: 'eng').
+ * @param onProgress   Optional callback invoked with progress updates.
+ * @returns            The extracted text and confidence score.
  */
 export async function extractTextFromImage(
   imageSource: File | string,
+  language: string = 'eng',
   onProgress?: (info: OCRProgressInfo) => void
-): Promise<string> {
-  // Dynamic import keeps Tesseract.js out of the initial JS bundle and off the server
+): Promise<OCRResult> {
   const { createWorker } = await import('tesseract.js');
 
-  const worker = await createWorker('eng', 1, {
+  const worker = await createWorker(language, 1, {
     logger: (message: { status?: string; progress?: number }) => {
       if (onProgress && typeof message.progress === 'number') {
         onProgress({
@@ -38,11 +69,13 @@ export async function extractTextFromImage(
 
   try {
     const {
-      data: { text },
+      data: { text, confidence },
     } = await worker.recognize(imageSource);
-    return cleanText(text);
+    return {
+      text: cleanText(text),
+      confidence: Math.round(confidence),
+    };
   } finally {
-    // Always terminate the worker to free memory
     await worker.terminate();
   }
 }
@@ -53,11 +86,8 @@ export async function extractTextFromImage(
  */
 function cleanText(raw: string): string {
   return raw
-    // Keep: a-z A-Z 0-9, spaces, tabs, newlines — drop all other symbols
     .replace(/[^a-zA-Z0-9\s]/g, '')
-    // Collapse 3+ consecutive newlines down to 2 (one blank line)
     .replace(/\n{3,}/g, '\n\n')
-    // Collapse multiple spaces/tabs on the same line into one space
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
 }

@@ -29,33 +29,20 @@ Image Text Extractor is a client-side optical character recognition (OCR) tool t
 | Feature | Description |
 |---|---|
 | **On-device OCR** | Text extraction powered by Tesseract.js — runs 100% in the browser |
-| **Multiple input methods** | Drag & drop, file browse, clipboard paste (Ctrl+V), or right-click paste |
-| **Clipboard paste** | Paste screenshots or copied images directly with `Ctrl+V` or the right-click context menu |
+| **20+ languages** | English, Spanish, French, German, Hindi, Arabic, Chinese, Japanese, Korean, and more |
+| **Multiple input methods** | Drag & drop, file browse, clipboard paste (Ctrl+V), right-click paste, or batch upload |
+| **Batch processing** | Upload and OCR multiple images at once with tabbed results |
+| **Image preprocessing** | Rotate (90/180/270), adjust brightness and contrast before OCR |
+| **Search in text** | Find and highlight specific terms in extracted text (Ctrl+F) |
+| **Export formats** | Download as TXT, PDF, or Word DOCX |
+| **OCR History** | Save past extractions with thumbnails — revisit anytime (Ctrl+H) |
+| **Confidence score** | See the OCR engine's confidence percentage for each extraction |
+| **Dark/Light theme** | Toggle between dark and light modes — respects your system preference |
+| **Clipboard paste** | Paste screenshots or copied images directly with Ctrl+V or right-click |
 | **Supported formats** | PNG, JPG, JPEG, WEBP — up to 10 MB |
-| **Copy & Download** | Copy extracted text to clipboard or download as a `.txt` file |
 | **Real-time progress** | Live progress bar and status updates during OCR processing |
 | **Privacy first** | Zero server-side processing — images never leave your browser |
-| **Responsive design** | Works beautifully on desktop, tablet, and mobile |
-| **Modern UI** | Dark theme with glassmorphism effects, built with Tailwind CSS |
-
----
-
-## Screenshots
-
-```
-┌─────────────────────────┬─────────────────────────┐
-│                         │                         │
-│    ┌───────────────┐    │   Extracted Text        │
-│    │               │    │                         │
-│    │   Image       │    │   Hello World           │
-│    │   Preview     │    │   This is extracted     │
-│    │               │    │   text from the         │
-│    └───────────────┘    │   uploaded image.       │
-│                         │                         │
-│   [ Upload Image ]      │   [ Copy ] [ Download ] │
-│                         │                         │
-└─────────────────────────┴─────────────────────────┘
-```
+| **Keyboard shortcuts** | Full keyboard navigation with Ctrl+/, Ctrl+H, Ctrl+F, Ctrl+S, and more |
 
 ---
 
@@ -89,9 +76,7 @@ Image Text Extractor is a client-side optical character recognition (OCR) tool t
 
 4. **Open in browser**
 
-   Navigate to [http://localhost:3000](http://localhost:3200)
-
-That's it — you're ready to go.
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
 ---
 
@@ -99,10 +84,23 @@ That's it — you're ready to go.
 
 ### Upload an Image
 
-- **Drag & drop** an image onto the upload zone
+- **Drag & drop** an image onto the upload zone (or anywhere on the page)
 - **Click** the upload zone to browse and select a file
 - **Paste** an image from your clipboard using `Ctrl+V` (or `Cmd+V` on macOS)
 - **Right-click** anywhere on the page and select "Paste Image from Clipboard"
+- **Batch mode** — drop multiple files at once or use the batch upload button
+
+### Select Language
+
+Choose the image's language from the dropdown in the header for best accuracy. The first scan for each language downloads the language model (~10 MB) — subsequent scans are instant.
+
+### Preprocess Images
+
+After uploading, use the Image Editor toolbar to:
+- **Rotate** the image by 90°, 180°, or 270°
+- **Adjust brightness** with a slider (-100 to +100)
+- **Adjust contrast** with a slider (-100 to +100)
+- Click **Apply Adjustments** to re-process the image
 
 ### Extract Text
 
@@ -110,12 +108,38 @@ Once an image is uploaded, the OCR engine processes it automatically:
 
 1. The image preview appears in the left panel
 2. A progress bar shows the current processing status
-3. Extracted text appears in the right panel with word/character/line counts
+3. Extracted text appears in the right panel with word/character/line counts and confidence score
+
+### Search in Text
+
+- Click the **Search** button or press `Ctrl+F` to open the search bar
+- Type to find and highlight matches in the extracted text
+- Navigate between matches with the up/down arrows
 
 ### Export Results
 
-- **Copy Text** — copies extracted text to your clipboard
-- **Download .txt** — saves extracted text as a timestamped `.txt` file
+Click the **Export** dropdown to choose your format:
+- **TXT** — plain text file
+- **PDF** — formatted PDF document with title and date
+- **DOCX** — Word document with headings and metadata
+
+### View History
+
+Press `Ctrl+H` or click the **History** button to see past extractions with thumbnails, timestamps, and word counts. Click any entry to restore its text.
+
+---
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl+V` | Paste image from clipboard |
+| `Ctrl+C` | Copy extracted text |
+| `Ctrl+F` | Search in extracted text |
+| `Ctrl+S` | Download extracted text |
+| `Ctrl+/` | Toggle keyboard shortcuts panel |
+| `Ctrl+H` | Toggle extraction history |
+| `Esc` | Close menus / clear search |
 
 ---
 
@@ -124,50 +148,31 @@ Once an image is uploaded, the OCR engine processes it automatically:
 ```
 Image-Text-Extractor/
 ├── app/
-│   ├── globals.css          # Tailwind + custom scrollbar styles
-│   ├── layout.tsx           # Root layout (HTML shell, Inter font)
-│   └── page.tsx             # Home page (server component)
+│   ├── globals.css           # Tailwind + light/dark mode overrides
+│   ├── layout.tsx            # Root layout (HTML shell, Inter font)
+│   └── page.tsx              # Home page (server component)
 ├── components/
-│   ├── ContextMenu.tsx      # Custom right-click context menu
-│   ├── ImageUploader.tsx    # Drag-drop, file browse, paste hint
-│   ├── OCRApp.tsx           # Root client component (state + orchestration)
-│   └── OCRResult.tsx        # Text output, progress bar, actions
+│   ├── BatchResults.tsx      # Tabbed view for batch OCR results
+│   ├── BatchUpload.tsx       # Multi-file upload for batch mode
+│   ├── ContextMenu.tsx       # Custom right-click context menu
+│   ├── ExportMenu.tsx        # Export dropdown (TXT/PDF/DOCX)
+│   ├── HistoryPanel.tsx      # Extraction history modal
+│   ├── ImageEditor.tsx       # Rotate, brightness, contrast controls
+│   ├── ImageUploader.tsx     # Drag-drop, file browse, language selector
+│   ├── LanguageSelector.tsx  # Language dropdown with search
+│   ├── OCRApp.tsx            # Root client component (state + orchestration)
+│   ├── OCRResult.tsx         # Text output, search, progress, actions
+│   ├── ShortcutsModal.tsx    # Keyboard shortcuts panel
+│   └── ThemeToggle.tsx       # Dark/light mode toggle button
 ├── lib/
-│   └── ocr.ts               # Tesseract.js wrapper with progress tracking
+│   ├── history.ts            # localStorage CRUD for extraction history
+│   ├── imageProcessing.ts    # Canvas-based image manipulations
+│   ├── ocr.ts                # Tesseract.js wrapper with multi-language support
+│   └── theme.ts              # Dark/light theme hook with localStorage
 ├── package.json
 ├── tailwind.config.ts
 ├── tsconfig.json
 └── next.config.js
-```
-
-### Component Responsibilities
-
-| Component | Role |
-|---|---|
-| `OCRApp` | Owns all shared state, handles clipboard paste events, context menu, and orchestrates the OCR pipeline |
-| `ImageUploader` | Manages the drop zone UI, file validation, drag-and-drop, and image preview |
-| `OCRResult` | Displays extracted text, progress bar, error states, and copy/download actions |
-| `ContextMenu` | Renders a custom right-click menu with clipboard paste option |
-| `ocr.ts` | Dynamically imports Tesseract.js and provides a typed `extractTextFromImage` function |
-
-### Data Flow
-
-```
-User Input (drop / paste / browse)
-        │
-        ▼
-   OCRApp.handleFileSelect(file)
-        │
-        ├──► Creates blob URL for preview
-        ├──► Sets processing state
-        │
-        ▼
-   lib/ocr.ts → Tesseract.js worker
-        │
-        ├──► Progress callbacks → OCRResult progress bar
-        │
-        ▼
-   Extracted text → OCRResult textarea
 ```
 
 ---
@@ -181,6 +186,8 @@ User Input (drop / paste / browse)
 | OCR Engine | [Tesseract.js 5](https://tesseract.projectnaptha.com) |
 | Styling | [Tailwind CSS 3](https://tailwindcss.com) |
 | Language | [TypeScript 5](https://www.typescriptlang.org) |
+| PDF Export | [jsPDF](https://github.com/parallax/jsPDF) |
+| DOCX Export | [docx](https://github.com/dolanmiu/docx) |
 | Linting | [ESLint 9](https://eslint.org) with Next.js config |
 
 ---
@@ -192,11 +199,10 @@ Contributions are welcome. To get started:
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Run `npm run lint` to check for issues
-5. Run `npm run build` to verify the build passes
-6. Commit your changes (`git commit -m 'Add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
+4. Run `npm run build` to verify the build passes
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
 ---
 
@@ -211,3 +217,5 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - [Tesseract.js](https://tesseract.projectnaptha.com) — the open-source OCR engine that powers this tool
 - [Next.js](https://nextjs.org) — the React framework for production
 - [Tailwind CSS](https://tailwindcss.com) — utility-first CSS framework
+- [jsPDF](https://github.com/parallax/jsPDF) — PDF generation
+- [docx](https://github.com/dolanmiu/docx) — Word document generation
