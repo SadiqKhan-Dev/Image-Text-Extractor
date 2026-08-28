@@ -16,8 +16,11 @@ export default function PDFConvertPanel({ doc, pdfFile, totalPages, currentPage 
   const [mode, setMode] = useState<'toImage' | 'toPDF'>('toImage');
   const [dpi, setDpi] = useState(200);
   const [format, setFormat] = useState<'png' | 'jpeg'>('png');
+  const [quality, setQuality] = useState(90);
   const [pageSize, setPageSize] = useState<'a4' | 'letter' | 'fit'>('a4');
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [processing, setProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
 
@@ -26,7 +29,7 @@ export default function PDFConvertPanel({ doc, pdfFile, totalPages, currentPage 
     setMessage(null);
     try {
       const scale = dpi / 72;
-      const blob = await renderPageToImage(doc, currentPage, scale, format);
+      const blob = await renderPageToImage(doc, currentPage, scale, format, quality / 100);
       downloadBlob(blob, `page-${currentPage}.${format}`);
       setMessage({ type: 'success', text: `Exported page ${currentPage} as ${format.toUpperCase()}.` });
     } catch {
@@ -38,18 +41,35 @@ export default function PDFConvertPanel({ doc, pdfFile, totalPages, currentPage 
   const handleExportAllPages = async () => {
     setProcessing(true);
     setMessage(null);
+    setProgress(0);
     try {
       const scale = dpi / 72;
+      const blobs: { blob: Blob; name: string }[] = [];
       for (let i = 1; i <= totalPages; i++) {
-        const blob = await renderPageToImage(doc, i, scale, format);
-        downloadBlob(blob, `page-${i}.${format}`);
-        await new Promise((r) => setTimeout(r, 100));
+        setProgress(Math.round((i / totalPages) * 100));
+        const blob = await renderPageToImage(doc, i, scale, format, quality / 100);
+        blobs.push({ blob, name: `page-${i}.${format}` });
       }
-      setMessage({ type: 'success', text: `Exported ${totalPages} pages as ${format.toUpperCase()}.` });
+
+      // Create ZIP if multiple pages
+      if (blobs.length > 1) {
+        const JSZip = (await import('jszip')).default;
+        const zip = new JSZip();
+        for (const { blob, name } of blobs) {
+          zip.file(name, blob);
+        }
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        downloadBlob(zipBlob, `pages.zip`);
+        setMessage({ type: 'success', text: `Exported ${totalPages} pages as ZIP.` });
+      } else {
+        downloadBlob(blobs[0].blob, blobs[0].name);
+        setMessage({ type: 'success', text: `Exported page 1 as ${format.toUpperCase()}.` });
+      }
     } catch {
       setMessage({ type: 'error', text: 'Failed to export pages.' });
     }
     setProcessing(false);
+    setProgress(0);
   };
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,31 +104,47 @@ export default function PDFConvertPanel({ doc, pdfFile, totalPages, currentPage 
 
       {mode === 'toImage' ? (
         <div className="space-y-3">
-          <div className="flex gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-theme-muted block mb-1">DPI</label>
-              <select value={dpi} onChange={(e) => setDpi(Number(e.target.value))} className="text-sm bg-theme-secondary rounded-lg px-2 py-1.5 border border-theme-muted">
-                <option value={72}>72</option>
+              <select value={dpi} onChange={(e) => setDpi(Number(e.target.value))} className="w-full text-sm bg-theme-secondary rounded-lg px-2 py-1.5 border border-theme-muted">
+                <option value={72}>72 (Screen)</option>
                 <option value={150}>150</option>
                 <option value={200}>200</option>
-                <option value={300}>300</option>
-                <option value={600}>600</option>
+                <option value={300}>300 (Print)</option>
+                <option value={600}>600 (High)</option>
               </select>
             </div>
             <div>
               <label className="text-xs text-theme-muted block mb-1">Format</label>
-              <select value={format} onChange={(e) => setFormat(e.target.value as any)} className="text-sm bg-theme-secondary rounded-lg px-2 py-1.5 border border-theme-muted">
+              <select value={format} onChange={(e) => setFormat(e.target.value as any)} className="w-full text-sm bg-theme-secondary rounded-lg px-2 py-1.5 border border-theme-muted">
                 <option value="png">PNG</option>
                 <option value="jpeg">JPEG</option>
               </select>
             </div>
+            {format === 'jpeg' && (
+              <div>
+                <label className="text-xs text-theme-muted block mb-1">Quality</label>
+                <div className="flex items-center gap-2">
+                  <input type="range" min={10} max={100} value={quality} onChange={(e) => setQuality(Number(e.target.value))} className="flex-1" />
+                  <span className="text-[10px] text-theme-faint w-6">{quality}%</span>
+                </div>
+              </div>
+            )}
           </div>
+
+          {processing && progress > 0 && (
+            <div className="w-full bg-theme-secondary rounded-full h-2">
+              <div className="bg-purple-600 h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+            </div>
+          )}
+
           <div className="flex gap-2">
             <button onClick={handleExportCurrentPage} disabled={processing} className="flex-1 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-500 disabled:opacity-50">
               Export Current Page
             </button>
             <button onClick={handleExportAllPages} disabled={processing} className="flex-1 py-2 rounded-lg bg-theme-secondary text-theme-primary text-sm font-medium hover:bg-theme-muted disabled:opacity-50">
-              Export All Pages
+              Export All Pages (ZIP)
             </button>
           </div>
         </div>
@@ -126,14 +162,35 @@ export default function PDFConvertPanel({ doc, pdfFile, totalPages, currentPage 
                 <span className="text-xs text-theme-faint">{imageFiles.length} image(s)</span>
                 <button onClick={() => setImageFiles([])} className="text-xs text-red-400 hover:text-red-300">Clear</button>
               </div>
-              <div>
-                <label className="text-xs text-theme-muted block mb-1">Page Size</label>
-                <select value={pageSize} onChange={(e) => setPageSize(e.target.value as any)} className="text-sm bg-theme-secondary rounded-lg px-2 py-1.5 border border-theme-muted w-full">
-                  <option value="a4">A4</option>
-                  <option value="letter">Letter</option>
-                  <option value="fit">Fit to Image</option>
-                </select>
+
+              {/* Image preview list */}
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {imageFiles.map((f, i) => (
+                  <div key={i} className="flex items-center justify-between bg-theme-secondary/50 rounded-lg px-2 py-1">
+                    <span className="text-[10px] text-theme-secondary truncate">{f.name}</span>
+                    <button onClick={() => setImageFiles((prev) => prev.filter((_, j) => j !== i))} className="text-[10px] text-red-400 hover:text-red-300">✕</button>
+                  </div>
+                ))}
               </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-theme-muted block mb-1">Page Size</label>
+                  <select value={pageSize} onChange={(e) => setPageSize(e.target.value as any)} className="w-full text-sm bg-theme-secondary rounded-lg px-2 py-1.5 border border-theme-muted">
+                    <option value="a4">A4</option>
+                    <option value="letter">Letter</option>
+                    <option value="fit">Fit to Image</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-theme-muted block mb-1">Orientation</label>
+                  <select value={orientation} onChange={(e) => setOrientation(e.target.value as any)} className="w-full text-sm bg-theme-secondary rounded-lg px-2 py-1.5 border border-theme-muted">
+                    <option value="portrait">Portrait</option>
+                    <option value="landscape">Landscape</option>
+                  </select>
+                </div>
+              </div>
+
               <button onClick={handleCreatePDF} disabled={processing} className="w-full py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-500 disabled:opacity-50">
                 {processing ? 'Creating...' : 'Create PDF'}
               </button>

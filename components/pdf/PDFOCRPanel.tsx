@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { createWorker } from 'tesseract.js';
+import { useState, useRef } from 'react';
+import { createWorker, type Worker } from 'tesseract.js';
 import type { PDFDocumentProxy } from '@/lib/pdfSetup';
 import { renderPageToImage } from '@/lib/pdfUtils';
 
@@ -22,6 +22,7 @@ export default function PDFOCRPanel({ doc, totalPages, currentPage }: PDFOCRPane
   const [progress, setProgress] = useState(0);
   const [selectedPage, setSelectedPage] = useState(currentPage);
   const [language, setLanguage] = useState('eng');
+  const workerRef = useRef<Worker | null>(null);
 
   const languages = [
     { code: 'eng', name: 'English' },
@@ -32,27 +33,27 @@ export default function PDFOCRPanel({ doc, totalPages, currentPage }: PDFOCRPane
     { code: 'por', name: 'Portuguese' },
     { code: 'rus', name: 'Russian' },
     { code: 'jpn', name: 'Japanese' },
-    { code: 'chi_sim', name: 'Chinese (Simplified)' },
-    { code: 'chi_tra', name: 'Chinese (Traditional)' },
+    { code: 'chi_sim', name: 'Chinese (Simp)' },
+    { code: 'chi_tra', name: 'Chinese (Trad)' },
     { code: 'kor', name: 'Korean' },
     { code: 'ara', name: 'Arabic' },
     { code: 'hin', name: 'Hindi' },
   ];
 
-  const extractFromPage = async (pageNum: number) => {
-    const worker = await createWorker(language);
-    setProgress(0);
-    const blob = await renderPageToImage(doc, pageNum, 2, 'png');
-    const { data } = await worker.recognize(blob);
-    await worker.terminate();
-    return { text: data.text, confidence: data.confidence };
+  const getWorker = async () => {
+    if (!workerRef.current) {
+      workerRef.current = await createWorker(language);
+    }
+    return workerRef.current;
   };
 
   const handleExtractSingle = async () => {
     setProcessing(true);
     try {
-      const result = await extractFromPage(selectedPage);
-      setResults((prev) => ({ ...prev, [selectedPage]: result }));
+      const worker = await getWorker();
+      const blob = await renderPageToImage(doc, selectedPage, 2, 'png');
+      const { data } = await worker.recognize(blob);
+      setResults((prev) => ({ ...prev, [selectedPage]: { text: data.text, confidence: data.confidence } }));
     } catch {
       console.error('OCR failed');
     }
@@ -62,8 +63,8 @@ export default function PDFOCRPanel({ doc, totalPages, currentPage }: PDFOCRPane
   const handleExtractAll = async () => {
     setProcessing(true);
     setProgress(0);
-    const worker = await createWorker(language);
     try {
+      const worker = await getWorker();
       for (let i = 1; i <= totalPages; i++) {
         setProgress(Math.round((i / totalPages) * 100));
         const blob = await renderPageToImage(doc, i, 2, 'png');
@@ -73,12 +74,26 @@ export default function PDFOCRPanel({ doc, totalPages, currentPage }: PDFOCRPane
     } catch {
       console.error('OCR failed');
     }
-    await worker.terminate();
     setProcessing(false);
+    setProgress(0);
   };
 
   const handleCopyText = (text: string) => {
     navigator.clipboard.writeText(text);
+  };
+
+  const handleExportTxt = () => {
+    const allText = Object.entries(results)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([page, r]) => `--- Page ${page} ---\n${r.text}`)
+      .join('\n\n');
+    const blob = new Blob([allText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ocr-results.txt';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const allText = Object.entries(results)
@@ -137,9 +152,14 @@ export default function PDFOCRPanel({ doc, totalPages, currentPage }: PDFOCRPane
       </div>
 
       {Object.keys(results).length > 0 && (
-        <button onClick={() => handleCopyText(allText)} className="w-full py-2 rounded-lg bg-theme-secondary text-theme-primary text-sm font-medium hover:bg-theme-muted">
-          Copy All Text
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => handleCopyText(allText)} className="flex-1 py-2 rounded-lg bg-theme-secondary text-theme-primary text-sm font-medium hover:bg-theme-muted">
+            Copy All Text
+          </button>
+          <button onClick={handleExportTxt} className="flex-1 py-2 rounded-lg bg-theme-secondary text-theme-primary text-sm font-medium hover:bg-theme-muted">
+            Export as TXT
+          </button>
+        </div>
       )}
     </div>
   );
