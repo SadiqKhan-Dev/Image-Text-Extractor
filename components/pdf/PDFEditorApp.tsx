@@ -92,23 +92,6 @@ export default function PDFEditorApp() {
 
   return (
     <div className="min-h-screen bg-theme-bg text-theme-primary">
-      {/* Header */}
-      <header className="border-b border-theme-secondary bg-theme-card">
-        <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h1 className="text-lg font-bold text-theme-primary">PDF Editor</h1>
-          </div>
-          <a href="/" className="text-sm text-purple-400 hover:text-purple-300 transition-colors">
-            ← Back to OCR Tool
-          </a>
-        </div>
-      </header>
-
       <main className="max-w-[1600px] mx-auto px-6 py-6">
         {!doc ? (
           <div className="flex flex-col items-center justify-center min-h-[70vh]">
